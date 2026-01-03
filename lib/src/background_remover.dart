@@ -109,7 +109,8 @@ class BackgroundRemover {
     );
 
     /// Prepare the inputs and run inference on the ONNX model.
-    final inputs = {'input.1': inputTensor};
+    // final inputs = {'input.1': inputTensor};
+    final inputs = {'input': inputTensor};
     final runOptions = OrtRunOptions();
     final outputs = await _session!.runAsync(runOptions, inputs);
     inputTensor.release();
@@ -131,8 +132,12 @@ class BackgroundRemover {
           : resizedMask;
 
       /// Apply the mask to the original image
-      result = await _applyMaskToOriginalSizeImage(originalImage, finalMask,
-          threshold: threshold, smooth: smoothMask);
+      result = await _applyMaskToOriginalSizeImage(
+        originalImage,
+        finalMask,
+        threshold: threshold,
+        smooth: smoothMask,
+      );
     } else {
       throw Exception('Unexpected output format from ONNX model.');
     }
@@ -150,15 +155,26 @@ class BackgroundRemover {
 
   /// Resizes the input image to the specified dimensions.
   Future<ui.Image> _resizeImage(
-      ui.Image image, int targetWidth, int targetHeight) async {
+    ui.Image image,
+    int targetWidth,
+    int targetHeight,
+  ) async {
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder);
     final paint = Paint()..filterQuality = FilterQuality.high;
 
-    final srcRect =
-        Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble());
-    final dstRect =
-        Rect.fromLTWH(0, 0, targetWidth.toDouble(), targetHeight.toDouble());
+    final srcRect = Rect.fromLTWH(
+      0,
+      0,
+      image.width.toDouble(),
+      image.height.toDouble(),
+    );
+    final dstRect = Rect.fromLTWH(
+      0,
+      0,
+      targetWidth.toDouble(),
+      targetHeight.toDouble(),
+    );
     canvas.drawImageRect(image, srcRect, dstRect, paint);
 
     final picture = recorder.endRecording();
@@ -209,7 +225,8 @@ class BackgroundRemover {
         final wy = srcY - y1;
 
         // Perform bilinear interpolation
-        resizedMask[y][x] = mask[y1][x1] * (1 - wx) * (1 - wy) +
+        resizedMask[y][x] =
+            mask[y1][x1] * (1 - wx) * (1 - wy) +
             mask[y1][x2] * wx * (1 - wy) +
             mask[y2][x1] * (1 - wx) * wy +
             mask[y2][x2] * wx * wy;
@@ -239,8 +256,9 @@ class BackgroundRemover {
 
   /// Enhances mask edges using image gradients.
   Future<List> _enhanceMaskEdges(ui.Image originalImage, List mask) async {
-    final byteData =
-        await originalImage.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final byteData = await originalImage.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    );
     if (byteData == null) throw Exception("Failed to get image ByteData");
     final rgbaBytes = byteData.buffer.asUint8List();
 
@@ -262,11 +280,14 @@ class BackgroundRemover {
         final idxDown = ((y + 1) * width + x) * 4;
 
         // Calculate gradient for each channel (R,G,B)
-        final gradR = (rgbaBytes[idxRight] - rgbaBytes[idxLeft]).abs() +
+        final gradR =
+            (rgbaBytes[idxRight] - rgbaBytes[idxLeft]).abs() +
             (rgbaBytes[idxDown] - rgbaBytes[idxUp]).abs();
-        final gradG = (rgbaBytes[idxRight + 1] - rgbaBytes[idxLeft + 1]).abs() +
+        final gradG =
+            (rgbaBytes[idxRight + 1] - rgbaBytes[idxLeft + 1]).abs() +
             (rgbaBytes[idxDown + 1] - rgbaBytes[idxUp + 1]).abs();
-        final gradB = (rgbaBytes[idxRight + 2] - rgbaBytes[idxLeft + 2]).abs() +
+        final gradB =
+            (rgbaBytes[idxRight + 2] - rgbaBytes[idxLeft + 2]).abs() +
             (rgbaBytes[idxDown + 2] - rgbaBytes[idxUp + 2]).abs();
 
         // Average gradient across channels
@@ -302,8 +323,12 @@ class BackgroundRemover {
   }
 
   /// Applies the mask to the original image with configurable threshold and smoothing.
-  Future<ui.Image> _applyMaskToOriginalSizeImage(ui.Image image, List mask,
-      {double threshold = 0.5, bool smooth = true}) async {
+  Future<ui.Image> _applyMaskToOriginalSizeImage(
+    ui.Image image,
+    List mask, {
+    double threshold = 0.5,
+    bool smooth = true,
+  }) async {
     final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
     if (byteData == null) throw Exception("Failed to get image ByteData");
 
@@ -331,9 +356,10 @@ class BackgroundRemover {
           alpha = 0; // Full transparency for background
         } else {
           // Smooth transition in the boundary region
-          alpha = ((maskValue - (threshold - 0.05)) / 0.1 * 255)
-              .round()
-              .clamp(0, 255);
+          alpha = ((maskValue - (threshold - 0.05)) / 0.1 * 255).round().clamp(
+            0,
+            255,
+          );
         }
 
         outRgbaBytes[i * 4] = rgbaBytes[i * 4]; // Red
@@ -345,10 +371,14 @@ class BackgroundRemover {
 
     final completer = Completer<ui.Image>();
     ui.decodeImageFromPixels(
-        outRgbaBytes, image.width, image.height, ui.PixelFormat.rgba8888,
-        (ui.Image img) {
-      completer.complete(img);
-    });
+      outRgbaBytes,
+      image.width,
+      image.height,
+      ui.PixelFormat.rgba8888,
+      (ui.Image img) {
+        completer.complete(img);
+      },
+    );
 
     return completer.future;
   }
@@ -357,10 +387,7 @@ class BackgroundRemover {
   List _smoothMask(List mask, int kernelSize) {
     final height = mask.length;
     final width = mask[0].length;
-    final smoothed = List.generate(
-      height,
-      (_) => List.filled(width, 0.0),
-    );
+    final smoothed = List.generate(height, (_) => List.filled(width, 0.0));
 
     final halfKernel = kernelSize ~/ 2;
 
@@ -402,13 +429,19 @@ class BackgroundRemover {
   ///   - bgColor: The background color as a [Color].
   ///
   /// - Returns: A [Future] that completes with the modified image as a [Uint8List].
-  Future<Uint8List> addBackground(
-      {required Uint8List image, required Color bgColor}) async {
+  Future<Uint8List> addBackground({
+    required Uint8List image,
+    required Color bgColor,
+  }) async {
     final img.Image decodedImage = img.decodeImage(image)!;
-    final newImage =
-        img.Image(width: decodedImage.width, height: decodedImage.height);
-    img.fill(newImage,
-        color: img.ColorRgb8(bgColor.red, bgColor.green, bgColor.blue));
+    final newImage = img.Image(
+      width: decodedImage.width,
+      height: decodedImage.height,
+    );
+    img.fill(
+      newImage,
+      color: img.ColorRgb8(bgColor.red, bgColor.green, bgColor.blue),
+    );
     img.compositeImage(newImage, decodedImage);
     final jpegBytes = img.encodeJpg(newImage);
     final completer = Completer<Uint8List>();
