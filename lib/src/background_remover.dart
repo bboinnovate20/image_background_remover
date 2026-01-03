@@ -23,7 +23,8 @@ class BackgroundRemover {
   final List<double> _mean = [0.485, 0.456, 0.406];
   final List<double> _std = [0.229, 0.224, 0.225];
 
-  int modelSize = 320;
+  // int modelSize = 320;
+  int modelSize = 1024;
 
   /// Initializes the ONNX environment and creates a session.
   ///
@@ -99,7 +100,7 @@ class BackgroundRemover {
     final originalImage = await decodeImageFromList(imageBytes);
     log('Original image size: ${originalImage.width}x${originalImage.height}');
 
-    final resizedImage = await _resizeImage(originalImage, 320, modelSize);
+    final resizedImage = await _resizeImage(originalImage, 1024, modelSize);
 
     /// Convert the resized image into a tensor format required by the ONNX model.
     final rgbFloats = await _imageToFloatTensor(resizedImage);
@@ -190,8 +191,8 @@ class BackgroundRemover {
 
     for (int y = 0; y < originalHeight; y++) {
       for (int x = 0; x < originalWidth; x++) {
-        final scaledX = x * 320 ~/ originalWidth;
-        final scaledY = y * 320 ~/ originalHeight;
+        final scaledX = x * 1024 ~/ originalWidth;
+        final scaledY = y * 1024 ~/ originalHeight;
         resizedMask[y][x] = mask[scaledY][scaledX];
       }
     }
