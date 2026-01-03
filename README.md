@@ -32,6 +32,9 @@ dependencies:
 
 ##  Usage
 # Initialization
+
+Store your model to assets/model/model.onnx
+
 Before using the `removeBg` method, you must initialize the ONNX environment:
 ```dart
     import 'package:image_background_remover/image_background_remover.dart';
